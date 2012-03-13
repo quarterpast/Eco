@@ -1,0 +1,3 @@
+Q.all ["""hello """, do -> [].concat do
+	there
+.join '', """"""]

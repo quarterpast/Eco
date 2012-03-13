@@ -1,0 +1,19 @@
+exports.Eco = new class
+	open = "{{"
+	close = "}}"
+
+	@chunk = (tmpl)->
+		tmpl -= /\s*<!\[CDATA\[\s*|\s*\]\]>\s*|[\r\t]/g
+		tmpl.split open
+		.join close+"\x1b"
+		.split close
+
+	@trans = (chunk)->
+		if chunk.0 is "\x1b" then
+			"do -> [].concat do\n" + 
+			(chunk.substr 1 .replace /^(\s*)/gm,"\t$1") +
+			"\n.join ''"
+		else '"""'+chunk+'"""'
+
+	compile: (tmpl)->
+		"Q.all ["+((..trans chunk for chunk of ..chunk tmpl).join ", ") + "]"
