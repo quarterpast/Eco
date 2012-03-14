@@ -1,9 +1,11 @@
+vm = require \vm
+Q = require \q
 exports.Eco = new class
 	open = "{{"
 	close = "}}"
 
 	@chunk = (tmpl)->
-		tmpl -= /\s*<!\[CDATA\[\s*|\s*\]\]>\s*|[\r\t]/g
+		#tmpl -= /\s*<!\[CDATA\[\s*|\s*\]\]>\s*|[\r\t]/g
 		tmpl.split open
 		.join close+"\x1b"
 		.split close
@@ -16,4 +18,18 @@ exports.Eco = new class
 		else '"""'+chunk+'"""'
 
 	compile: (tmpl)->
-		"Q.all ["+((..trans chunk for chunk of ..chunk tmpl).join ", ") + "]"
+		squish = for chunk of ..chunk tmpl
+			pp chunk
+			..trans chunk
+		"return Q.all ["+(squish.join ",")+"]"
+
+if module is require.main
+	co = exports.Eco.compile """
+hello
+{{thing}}
+"""
+	src = Coco.compile co
+	console.log co
+	compiled = vm.createScript src
+	compiled.runInNewContext {thing: "world", Q} .then ->
+		console.log it.join ""
