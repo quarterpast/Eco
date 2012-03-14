@@ -1,16 +1,20 @@
 vm = require \vm
 Q = require \q
 
-exports.Eco = new class
+class exports.Eco
 	baseOpts = 
 		open: "{{"
 		close: "}}"
 		wrapper: "Q.all"
+
+	(opts)->
+		@options = ^baseOpts import opts
+
 	@chunk = (tmpl)->
 		#tmpl -= /\s*<!\[CDATA\[\s*|\s*\]\]>\s*|[\r\t]/g
-		tmpl.split baseOpts.open
-		.join baseOpts.close+"\x1b"
-		.split baseOpts.close
+		tmpl.split @options.open
+		.join @options.close+"\x1b"
+		.split @options.close
 
 	@trans = (chunk)->
 		if chunk.0 is "\x1b" then
@@ -20,11 +24,11 @@ exports.Eco = new class
 		else '"""'+chunk+'"""'
 
 	compile: (tmpl,opts = {})->
-		baseOpts import opts
+		@options import opts
 		squish = for chunk of ..chunk tmpl
 			pp chunk
 			..trans chunk
-		"return #{baseOpts.wrapper} ["+(squish.join ",")+"]"
+		"return #{@options.wrapper} ["+(squish.join ",")+"]"
 
 if module is require.main
 	co = exports.Eco.compile """
