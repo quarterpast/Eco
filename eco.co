@@ -1,42 +1,58 @@
 vm = require \vm
 Q = require \q
 
+class Out
+	(@text)->
+		console.log @text
+		@script = vm.createScript @compiled = Coco.compile @text
+	promise: ->
+		acc,promise <- it.reduce ..., Q.when ""
+		accd <- Q.when(acc).then
+		value <- Q.when(promise).then
+		return accd+value
+	runInNewContext: (...args)->
+		@script.~runInNewContext ...args .then @promise
+	runInContext: (...args)->
+		@script.~runInContext ...args .then @promise
+	runInThisContext: (...args)->
+		@script.~runInThisContext ...args .then @promise
+
 class exports.Eco
-	baseOpts = 
-		open: "{{"
-		close: "}}"
-		wrapper: "Q.all"
+	(opts = {})->
+		@tabs = 0
+		@options = {open: "{{",close: "}}",wrapper: "Q.all"} import opts
 
-	(opts)->
-		@options = ^baseOpts import opts
-
-	@chunk = (tmpl)->
-		#tmpl -= /\s*<!\[CDATA\[\s*|\s*\]\]>\s*|[\r\t]/g
+	chunk: (tmpl)->
+		tmpl -= /\s*<!\[CDATA\[\s*|\s*\]\]>\s*|[\r\t]/g
 		tmpl.split @options.open
 		.join @options.close+"\x1b"
 		.split @options.close
 
-	@trans = (chunk)->
-		if chunk.0 is "\x1b" then
-			"do -> [].concat do\n" + 
-			(chunk.substr 1 .replace /^(\s*)/gm,"\t$1") +
-			"\n.join ''"
-		else '"""'+chunk+'"""'
+	trans: (chunk)->
+		"\t"*@tabs + if chunk.0 is "\x1b" then
+			if chunk.substr(1) is \end then
+				@tabs--
+				"]"
+			else if chunk[*-1] is \:
+				@tabs++
+				(chunk.substr 1,)+" ["
+			else chunk.substr 1
+		else
+			'"""'+chunk+'"""'
 
-	compile: (tmpl,opts = {})->
-		@options import opts
-		squish = for chunk of ..chunk tmpl
-			pp chunk
-			..trans chunk
-		"return #{@options.wrapper} ["+(squish.join ",")+"]"
+	compile: (tmpl)->
+		squish = for chunk of @chunk tmpl
+			@trans chunk
+		new Out "return #{@options.wrapper} [#{squish.join ","}]"
 
 if module is require.main
-	co = exports.Eco.compile """
-hello
-{{thing}}
-"""
-	src = Coco.compile co
-	console.log co
-	compiled = vm.createScript src
-	compiled.runInNewContext {thing: "world", Q} .then ->
-		console.log it.join ""
+	(new Eco).compile """hello
+	there
+	{{for kid of kids:}}
+		hi!
+	{{end}}
+
+""" .runInNewContext {kids:[name:\Matt],Q}
+	.then console.log
+	
+	
